@@ -301,7 +301,8 @@ function! s:query_callback(query, start_reltime, lines, status) abort
   call writefile(a:lines, a:query.output, 'b')
   let status_msg = 'DB: Query ' . string(a:query.output)
   let status_msg .= a:status ? ' aborted after ' : ' finished in '
-  let status_msg .= printf('%.3fs', a:query.runtime)
+  let l:runtime = printf('%.3fs', a:query.runtime)
+  let status_msg .= l:runtime
   let wins = win_findbuf(bufnr(a:query.output))
   if !empty(wins)
     let return_win = win_getid()
@@ -312,7 +313,15 @@ function! s:query_callback(query, start_reltime, lines, status) abort
     let status_msg .= ' (no window?)'
   endif
   exe 'doautocmd <nomodeline> User ' . fnameescape(a:query.output . '/DBExecutePost')
-  echo status_msg
+  if has('nvim')
+    " Use vim.notify
+    let status_msg = 'Query ' . (a:status ? 'aborted after ' : 'finished in ') . l:runtime
+    let title = '[' . fnamemodify(a:query.output, ':t') . ']'
+    let level = a:status ? 'WARN' : 'INFO'
+    call luaeval('vim.notify(_A[1], _A[2], { title = _A[3] })', [status_msg, level, title])
+  else
+    echo status_msg
+  endif
 endfunction
 
 function! db#connect(url) abort
